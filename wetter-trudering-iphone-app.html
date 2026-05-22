@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Wetter Trudering</title>
+<meta name="theme-color" content="#0f172a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Wetter Trudering" />
+<meta http-equiv="refresh" content="900" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{color-scheme:dark;--bg:#0f172a;--card:#1e293b;--metric:#020617;--text:#fff;--muted:rgba(255,255,255,.72);--danger:#fecaca}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Arial,sans-serif}
+body{padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:20;padding:calc(16px + env(safe-area-inset-top)) 18px 14px;background:rgba(15,23,42,.92);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.08)}
+h1{margin:0;font-size:1.35rem;letter-spacing:-.02em}
+.sub{margin-top:4px;font-size:.88rem;color:var(--muted)}
+.container{padding:16px;display:grid;gap:16px;max-width:900px;margin:0 auto}
+.card{background:linear-gradient(180deg,rgba(30,41,59,.98),rgba(15,23,42,.98));padding:18px;border-radius:22px;box-shadow:0 14px 34px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.07)}
+.card h2{margin:0 0 14px;font-size:1.15rem}
+.hero{display:flex;align-items:end;justify-content:space-between;gap:16px;margin-bottom:16px}
+.temp{font-size:4.2rem;line-height:.9;font-weight:750;letter-spacing:-.06em}
+.hero-meta{text-align:right;color:var(--muted);font-size:.95rem}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.metric{background:rgba(2,6,23,.72);border-radius:18px;padding:14px;min-height:94px;border:1px solid rgba(255,255,255,.06)}
+.label{color:var(--muted);font-size:.86rem;margin-bottom:8px}
+.value{font-size:1.55rem;font-weight:720;letter-spacing:-.03em}
+.hint{font-size:.85rem;color:var(--muted);line-height:1.35;margin-top:12px}
+#error{display:none;background:#7f1d1d;color:var(--danger);border-radius:16px;padding:14px;line-height:1.35}
+#map{height:min(58vh,520px);min-height:360px;border-radius:20px;overflow:hidden;background:#111827}
+.footer{text-align:center;color:var(--muted);font-size:.8rem;padding:8px 0 18px}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:rgba(250,204,21,.14);color:#fde68a;font-size:.78rem;margin-top:8px}
+@media (min-width:720px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}.temp{font-size:5rem}}
+@media (display-mode:standalone){header{padding-top:calc(20px + env(safe-area-inset-top))}}
+</style>
+</head>
+<body>
+<header>
+<h1>Wetter Trudering</h1>
+<div class="sub">München-Trudering · Aktualisiert alle 15 Minuten</div>
+</header>
+<main class="container">
+<div id="error"></div>
+<section class="card">
+<div class="hero">
+<div>
+<div class="label">Aktuell</div>
+<div class="temp" id="temp">--°</div>
+<div class="badge" id="condition">lädt…</div>
+</div>
+<div class="hero-meta">
+<div id="updated">lädt…</div>
+<div>48.126°N · 11.663°E</div>
+</div>
+</div>
+<div class="grid">
+<div class="metric"><div class="label">Gefühlt</div><div class="value" id="apparent">--°C</div></div>
+<div class="metric"><div class="label">UV jetzt</div><div class="value" id="uv">--</div></div>
+<div class="metric"><div class="label">UV max.</div><div class="value" id="uvmax">--</div></div>
+<div class="metric"><div class="label">Regen jetzt</div><div class="value" id="precip">-- mm</div></div>
+<div class="metric"><div class="label">Wind</div><div class="value" id="wind">-- km/h</div></div>
+<div class="metric"><div class="label">Feuchte</div><div class="value" id="humidity">--%</div></div>
+<div class="metric"><div class="label">Bewölkung</div><div class="value" id="clouds">--%</div></div>
+<div class="metric"><div class="label">Sonnenbrand-Risiko</div><div class="value" id="uvrisk">--</div></div>
+</div>
+<div class="hint">Für den iPhone-Shortcut: online hosten, in Safari öffnen, Teilen → Zum Home-Bildschirm.</div>
+</section>
+<section class="card">
+<h2>Radar</h2>
+<div id="map"></div>
+<div class="hint">Radar zeigt Niederschlag. Wolkenbedeckung steht oben als Prozentwert.</div>
+</section>
+<div class="footer">Daten: Open-Meteo · Karte: OpenStreetMap · Radar: RainViewer</div>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const lat=48.126,lon=11.663;
+const $=id=>document.getElementById(id);
+const setText=(id,value)=>$(id).textContent=value;
+function showError(message){const el=$("error");el.style.display="block";el.textContent=message}
+function uvRisk(v){if(v<3)return"niedrig";if(v<6)return"mittel";if(v<8)return"hoch";if(v<11)return"sehr hoch";return"extrem"}
+function weatherCodeText(code){const m={0:"klar",1:"meist klar",2:"teils bewölkt",3:"bewölkt",45:"Nebel",48:"Reifnebel",51:"Nieselregen",53:"Nieselregen",55:"starker Nieselregen",61:"Regen",63:"mäßiger Regen",65:"starker Regen",71:"Schnee",73:"mäßiger Schnee",75:"starker Schnee",80:"Regenschauer",81:"Regenschauer",82:"starke Schauer",95:"Gewitter",96:"Gewitter mit Hagel",99:"starkes Gewitter"};return m[code]||"Wetterdaten"}
+function nearestHourlyValue(times,values){const now=Date.now();let bi=0,bd=Infinity;for(let i=0;i<times.length;i++){const d=Math.abs(new Date(times[i]).getTime()-now);if(d<bd){bd=d;bi=i}}return values[bi]}
+async function loadWeather(){
+try{
+const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&timezone=Europe%2FBerlin&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,cloud_cover,wind_speed_10m,weather_code&hourly=uv_index&daily=uv_index_max`;
+const response=await fetch(url,{cache:"no-store"});
+if(!response.ok)throw new Error("Open-Meteo HTTP "+response.status);
+const data=await response.json(),c=data.current;
+setText("temp",Math.round(c.temperature_2m)+"°");
+setText("apparent",Math.round(c.apparent_temperature)+"°C");
+setText("wind",Math.round(c.wind_speed_10m)+" km/h");
+setText("humidity",Math.round(c.relative_humidity_2m)+"%");
+setText("clouds",Math.round(c.cloud_cover)+"%");
+setText("precip",Number(c.precipitation).toFixed(1)+" mm");
+setText("condition",weatherCodeText(c.weather_code));
+const uvNow=Number(nearestHourlyValue(data.hourly.time,data.hourly.uv_index));
+const uvMax=Number(data.daily.uv_index_max[0]);
+setText("uv",uvNow.toFixed(1));
+setText("uvmax",uvMax.toFixed(1));
+setText("uvrisk",uvRisk(uvMax));
+setText("updated",new Date().toLocaleString("de-DE",{weekday:"short",hour:"2-digit",minute:"2-digit"}));
+}catch(err){showError("Wetterdaten konnten nicht geladen werden. Prüfe Internet/Safari oder hoste die Datei online. Fehler: "+err.message)}
+}
+loadWeather();setInterval(loadWeather,15*60*1000);
+const map=L.map("map",{zoomControl:true,attributionControl:true}).setView([lat,lon],10);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+L.marker([lat,lon]).addTo(map).bindPopup("München-Trudering");
+async function addRainViewerRadar(){
+try{
+const res=await fetch("https://api.rainviewer.com/public/weather-maps.json",{cache:"no-store"});
+if(!res.ok)throw new Error("RainViewer HTTP "+res.status);
+const rv=await res.json();
+const frames=[...((rv.radar&&rv.radar.past)||[]),...((rv.radar&&rv.radar.nowcast)||[])];
+if(!frames.length)return;
+const latest=frames[frames.length-1].path;
+L.tileLayer(rv.host+latest+"/256/{z}/{x}/{y}/2/1_1.png",{opacity:.68,attribution:"Radar &copy; RainViewer"}).addTo(map);
+}catch(err){console.warn("Radar konnte nicht geladen werden:",err)}
+}
+addRainViewerRadar();setInterval(addRainViewerRadar,15*60*1000);
+</script>
+</body>
+</html>
