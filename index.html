@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Familien-Cockpit Trudering</title>
+<meta name="theme-color" content="#0f172a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Trudering" />
+<meta http-equiv="refresh" content="900" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{color-scheme:dark;--line:rgba(255,255,255,.08);--muted:rgba(255,255,255,.72);--panel:rgba(2,6,23,.72)}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#0f172a;color:white;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Arial,sans-serif;-webkit-text-size-adjust:100%;overflow-x:hidden}
+body{padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:20;padding:calc(10px + env(safe-area-inset-top)) 12px 9px;background:rgba(15,23,42,.94);backdrop-filter:blur(18px);border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:1.16rem}.sub,.hint,.footer{color:var(--muted)}.sub{margin-top:2px;font-size:.78rem}
+.container{width:100%;max-width:430px;margin:0 auto;padding:10px;display:grid;gap:10px}
+.card{background:linear-gradient(180deg,rgba(30,41,59,.98),rgba(15,23,42,.98));padding:13px;border-radius:18px;box-shadow:0 8px 22px rgba(0,0,0,.22);border:1px solid var(--line);overflow:hidden}
+.card h2{margin:0 0 10px;font-size:1.04rem}.summary{font-size:.96rem;line-height:1.32;font-weight:650}
+.hero{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:10px}.temp{font-size:3.15rem;line-height:.9;font-weight:780;letter-spacing:-.07em}.hero-meta{text-align:right;color:var(--muted);font-size:.8rem}
+.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:rgba(250,204,21,.14);color:#fde68a;font-size:.72rem;margin-top:6px}
+.compactGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.metric{background:var(--panel);border-radius:14px;padding:10px;min-height:68px;border:1px solid rgba(255,255,255,.06)}
+.label{color:var(--muted);font-size:.76rem;margin-bottom:5px}.value{font-size:1.14rem;font-weight:740;letter-spacing:-.03em}
+#error{display:none;background:#7f1d1d;color:#fecaca;border-radius:14px;padding:12px;line-height:1.35}
+.nowbox{border-radius:15px;padding:11px;margin-bottom:10px;background:var(--panel);border:1px solid var(--line);font-size:.91rem;line-height:1.28}.nowbox strong{font-size:.98rem}
+.timelineShell{width:100%;overflow:hidden}.timeline{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 25px)/6);gap:5px;overflow-x:auto;padding-bottom:7px;-webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory}.timeline::-webkit-scrollbar{display:none}
+.hour{scroll-snap-align:start;border-radius:13px;padding:8px 3px;background:var(--panel);border:1px solid var(--line);text-align:center;min-height:88px}.hour .t{font-size:.68rem;color:var(--muted)}.hour .uv{font-size:.92rem;font-weight:780;margin:4px 0}.hour .rec{font-size:.58rem;line-height:1.08}
+.green{box-shadow:inset 0 0 0 2px rgba(34,197,94,.75)}.yellow{box-shadow:inset 0 0 0 2px rgba(250,204,21,.88)}.orange{box-shadow:inset 0 0 0 2px rgba(251,146,60,.9)}.red{box-shadow:inset 0 0 0 2px rgba(239,68,68,.95)}.gray{box-shadow:inset 0 0 0 2px rgba(148,163,184,.75)}
+.periods,.list{display:grid;gap:8px}.eventBig{grid-template-columns:42px 1fr!important;align-items:start!important}.eventBig .itemTitle{font-size:.96rem}.eventBig .itemSub{font-size:.78rem}.period,.item{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:10px}
+.item{grid-template-columns:34px 1fr}.icon{font-size:1.7rem;text-align:center}.periodTitle,.itemTitle{font-size:.92rem;font-weight:720}.periodSub,.itemSub{font-size:.75rem;color:var(--muted);margin-top:1px;line-height:1.25}.periodTemp{font-size:1.28rem;font-weight:780}
+.newsList{display:grid;gap:8px}.news{display:block;text-decoration:none;color:white;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px}.newsTitle{font-size:.88rem;font-weight:700;line-height:1.25}.newsMeta{font-size:.72rem;color:var(--muted);margin-top:4px}
+.chartWrap{overflow-x:auto;-webkit-overflow-scrolling:touch}svg{display:block;width:100%;min-width:430px}.axis{stroke:rgba(255,255,255,.18);stroke-width:1}.chartText{fill:rgba(255,255,255,.72);font-size:12px}
+.sunGraphic{position:relative;height:135px;margin-top:3px;border-radius:16px;background:linear-gradient(180deg,rgba(14,165,233,.20),rgba(250,204,21,.08) 50%,rgba(2,6,23,.75));overflow:hidden;border:1px solid var(--line)}
+.sunArc{position:absolute;left:8%;right:8%;bottom:29px;height:96px;border-top:2px dashed rgba(250,204,21,.7);border-radius:50% 50% 0 0}.horizon{position:absolute;left:0;right:0;bottom:29px;border-top:1px solid rgba(255,255,255,.25)}
+.sunDot{position:absolute;width:28px;height:28px;border-radius:50%;background:#facc15;box-shadow:0 0 22px rgba(250,204,21,.8);transform:translate(-50%,-50%)}.sunLabels{display:flex;justify-content:space-between;position:absolute;left:13px;right:13px;bottom:8px;color:var(--muted);font-size:.82rem}
+
+.locationControls{display:grid;gap:8px}
+
+button,.placeInput{border:1px solid var(--line);border-radius:14px;background:rgba(2,6,23,.78);color:white;padding:11px;font:inherit;font-size:.86rem}
+button{font-weight:720}.refreshBtn{font-size:.78rem;padding:7px 10px;border-radius:999px}
+button:active{transform:scale(.99)}
+.placeSearch{display:grid;grid-template-columns:1fr auto;gap:8px}
+.placeInput{width:100%;min-width:0}
+
+#map{height:280px;border-radius:16px;overflow:hidden;background:#111827}.hint{font-size:.74rem;line-height:1.25;margin-top:8px}.footer{text-align:center;font-size:.7rem;padding:5px 0 14px}
+a.item{color:white;text-decoration:none}.price{font-variant-numeric:tabular-nums}
+@media (max-width:360px){.container{padding:8px}.card{padding:11px}.temp{font-size:2.9rem}.timeline{grid-auto-columns:calc((100% - 20px)/6);gap:4px}.hour{padding:7px 2px;min-height:82px}.hour .rec{font-size:.54rem}.period,.item{grid-template-columns:36px 1fr auto}.item{grid-template-columns:30px 1fr}.icon{font-size:1.5rem}.periodTemp{font-size:1.16rem}#map{height:250px}}
+</style>
+</head>
+<body>
+<header><h1 id="appTitle">Familien-Cockpit</h1><div class="sub">Wetter · Martha · Sprit · News · <button class="refreshBtn" onclick="manualRefresh()">↻ Aktualisieren</button></div></header>
+<main class="container">
+<div id="error"></div>
+<section class="card"><h2>Standort / PLZ</h2>
+<div class="locationControls">
+  <button onclick="setHomeLocation()">🏠 Zuhause: Trudering</button>
+  <div class="placeSearch">
+    <input class="placeInput" id="placeInput" placeholder="Deutsche PLZ, z. B. 81825" inputmode="numeric" pattern="[0-9]*" />
+    <button onclick="searchPlace()">PLZ suchen</button>
+  </div>
+  <div class="hint" id="locationLabel">Aktuell: Zuhause · Trudering</div>
+</div>
+</section>
+<section class="card"><div class="summary" id="dailySummary">Tages-Zusammenfassung lädt…</div></section>
+
+<section class="card"><h2>Für Eva</h2><div class="nowbox" id="quoteBox">lädt…</div></section>
+
+<section class="card"><div class="hero"><div><div class="label">Aktuell</div><div class="temp" id="temp">--°</div><div class="badge" id="condition">lädt…</div></div><div class="hero-meta"><div id="updated">lädt…</div><div id="heroPlace">Zuhause</div></div></div><div class="compactGrid"><div class="metric"><div class="label">Gefühlt</div><div class="value" id="apparent">--°C</div></div><div class="metric"><div class="label">Martha</div><div class="value" id="uvrisk">--</div></div><div class="metric"><div class="label">Regen</div><div class="value" id="precip">-- mm</div></div><div class="metric"><div class="label">Wind</div><div class="value" id="wind">-- km/h</div></div></div></section>
+<section class="card"><h2>Martha eincremen?</h2><div class="nowbox" id="creamNow">lädt…</div><div class="timelineShell"><div class="timeline" id="uvTimeline"></div></div><div class="hint">09–21 Uhr · nach rechts wischen. Ab UV 3: SPF50+, Hut, Schatten.</div></section>
+<section class="card"><h2>Luftqualität heute</h2><div class="periods" id="airTop">lädt…</div></section>
+
+
+
+
+
+
+
+
+
+
+<section class="card"><h2>Temperatur</h2><div class="periods" id="periodCards">lädt…</div></section>
+
+<section class="card"><h2>Temperaturverlauf</h2><div class="chartWrap" id="tempChart">lädt…</div></section>
+<section class="card"><h2>Sonne</h2><div class="sunGraphic"><div class="sunArc"></div><div class="horizon"></div><div class="sunDot" id="sunDot" style="left:50%;top:44%"></div><div class="sunLabels"><div>🌅 <span id="sunrise">--:--</span></div><div>🌇 <span id="sunset">--:--</span></div></div></div><div class="hint" id="dayLength">Tageslänge: lädt…</div></section>
+<section class="card"><h2>Pollen</h2><div class="list"><a class="item" href="https://www.dwd.de/DE/leistungen/gefahrenindizespollen/gefahrenindexpollen.html" target="_blank"><div class="icon">🌾</div><div><div class="itemTitle">Pollenflug prüfen</div><div class="itemSub">DWD Pollen-Gefahrenindex öffnen</div></div></a></div></section>
+
+<section class="card"><h2>Top 5 Ideen heute</h2><div class="list" id="activityList">lädt…</div></section>
+
+<section class="card"><h2>Spritpreise am gewählten Ort</h2><div class="list" id="fuelStations">lädt…</div><div class="hint">Livepreise über Tankerkönig/MTS-K: E5 und E10. Sortiert nach günstigstem E10/E5-Preis im Umkreis.</div></section>
+<section class="card"><h2>Spritpreis-Prognose</h2><div class="list" id="fuelForecast">lädt…</div></section>
+
+<section class="card"><h2>ÖPNV / Verkehr</h2><div class="list" id="mvgList">MVG-Meldungen werden geladen…</div><div class="hint">Fallback-Link öffnet die offizielle MVG-Seite.</div></section>
+
+
+
+
+<section class="card"><h2>Besondere Ereignisse</h2><div class="list" id="eventsList">lädt…</div><div class="hint">Kalender, Bayern-Ferien/Feiertage, kleine Gesprächsanlässe und persönliche Daten.</div></section>
+
+<section class="card"><h2>News / Schlagzeilen</h2><div class="newsList" id="newsList">News werden geladen…</div><div class="hint">Top 10 der letzten 3 Tage, Dubletten werden ausgefiltert.</div></section>
+<section class="card"><h2>Vorhersage: morgen + 3 Tage</h2><div class="periods" id="forecastDays">lädt…</div><div class="hint">Wetter, UV-Maximum und Luftqualität als Tages-Ampel.</div></section>
+<section class="card"><h2>Radar</h2><div id="map"></div></section>
+<div class="footer">Open-Meteo · OpenStreetMap · RainViewer · Google News RSS · Tankerkönig</div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+
+try{renderQuoteOfDay();}catch(e){console.warn("Eva konnte nicht geladen werden",e)}
+document.addEventListener("DOMContentLoaded", renderQuoteOfDay);
+</script>
+<script>
+let lat=48.1228, lon=11.6678;
+let fuelLat=48.1228, fuelLon=11.6678;
+const HOME={lat:48.1228,lon:11.6678,fuelLat:48.1228,fuelLon:11.6678,name:"Zuhause · Trudering",plz:"81825"};
+const FUEL_REFERENCE_NAME="Aral Wasserburger Landstraße";
+let currentPlaceName=HOME.name;
+const $=id=>document.getElementById(id),setText=(id,v)=>$(id).textContent=v;
+const MVG_URL="https://www.mvg.de/verbindungen/betriebsmeldungen.html";
+const TANKERKOENIG_API_KEY="40cbb2cc-1ca9-4aa9-9066-3e997a11a306"; // Kostenlosen Key eintragen: https://creativecommons.tankerkoenig.de/
+
+function showError(m){const e=$("error");e.style.display="block";e.textContent=m}
+function pad(n){return String(n).padStart(2,"0")}function hhmm(s){const d=new Date(s);return pad(d.getHours())+":"+pad(d.getMinutes())}
+function weatherCodeText(c){return({0:"klar",1:"meist klar",2:"teils bewölkt",3:"bewölkt",45:"Nebel",48:"Reifnebel",51:"Nieselregen",53:"Nieselregen",55:"Nieselregen",61:"Regen",63:"Regen",65:"starker Regen",71:"Schnee",73:"Schnee",75:"starker Schnee",80:"Schauer",81:"Schauer",82:"starke Schauer",95:"Gewitter",96:"Gewitter",99:"Gewitter"})[c]||"Wetter"}
+function weatherIcon(code,cloud,rain){if(rain>0.4||[51,53,55,61,63,65,80,81,82].includes(code))return"🌧️";if([95,96,99].includes(code))return"⛈️";if([45,48].includes(code))return"🌫️";if(cloud<20)return"☀️";if(cloud<55)return"🌤️";return"☁️"}
+function nearestHourlyIndex(times){const now=Date.now();let bi=0,bd=Infinity;for(let i=0;i<times.length;i++){const d=Math.abs(new Date(times[i]).getTime()-now);if(d<bd){bd=d;bi=i}}return bi}
+function creamLevel(uv){if(uv<3)return{cls:"green",icon:"🟢",short:"ok",text:"meist keine Sonnencreme nötig"};if(uv<5)return{cls:"yellow",icon:"🟡",short:"cremen",text:"draußen: SPF50+ eincremen"};if(uv<8)return{cls:"orange",icon:"🟠",short:"SPF50",text:"SPF50+, Hut, Schatten"};return{cls:"red",icon:"🔴",short:"meiden",text:"Sonne meiden, SPF50+"}}
+function todayIndexes(times,start=0,end=23){const n=new Date(),arr=[];for(let i=0;i<times.length;i++){const t=new Date(times[i]),h=t.getHours();if(t.getFullYear()==n.getFullYear()&&t.getMonth()==n.getMonth()&&t.getDate()==n.getDate()&&h>=start&&h<=end)arr.push(i)}return arr}
+function avg(a){return a.reduce((x,y)=>x+y,0)/a.length}
+function segmentText(cloud,rain){if(rain>0.4)return"regnerisch";if(cloud<20)return"klar";if(cloud<45)return"sonnig";if(cloud<75)return"wechselhaft";return"bewölkt"}
+function firstCreamHour(times,uvs){for(const i of todayIndexes(times,9,21)){if(Number(uvs[i])>=3)return hhmm(times[i])}return null}
+function avoidSunWindow(times,uvs){const idxs=todayIndexes(times,9,21).filter(i=>Number(uvs[i])>=6);if(!idxs.length)return null;return hhmm(times[idxs[0]])+"–"+hhmm(times[idxs[idxs.length-1]])}
+
+function renderSummary(data){
+const h=data.hourly,d=data.daily;
+const idxs=todayIndexes(h.time,0,23);
+function part(a,b,dayOffset=0){
+  const base=new Date(); base.setDate(base.getDate()+dayOffset);
+  const ids=[];
+  for(let i=0;i<h.time.length;i++){
+    const t=new Date(h.time[i]),hr=t.getHours();
+    if(t.getFullYear()==base.getFullYear()&&t.getMonth()==base.getMonth()&&t.getDate()==base.getDate()&&hr>=a&&hr<=b) ids.push(i);
+  }
+  if(!ids.length) return "unklar";
+  return segmentText(avg(ids.map(i=>Number(h.cloud_cover[i]))),avg(ids.map(i=>Number(h.precipitation[i]))));
+}
+const maxT=Math.round(Math.max(...idxs.map(i=>Number(h.temperature_2m[i]))));
+const cream=firstCreamHour(h.time,h.uv_index),avoid=avoidSunWindow(h.time,h.uv_index);
+let s=`Heute bis ${maxT}°C. Vormittags ${part(6,11)}, mittags ${part(12,15)}, nachmittags ${part(16,19)}.`;
+s+=cream?` Martha ab ca. ${cream} eincremen.`:" Martha voraussichtlich nicht zwingend eincremen.";
+s+=avoid?` Direkte Sonne ${avoid} meiden.`:" Sonne weniger kritisch.";
+
+if(d && d.time && d.time.length>1){
+  const tmin=Math.round(d.temperature_2m_min[1]);
+  const tmax=Math.round(d.temperature_2m_max[1]);
+  const uv=Number(d.uv_index_max[1]||0);
+  const rain=Number(d.precipitation_sum[1]||0);
+  s+=` Morgen: ${tmin}–${tmax}°C, ${weatherCodeText(d.weather_code[1]).toLowerCase()}, UV max. ${uv.toFixed(1)}${rain>0?`, Regen ${rain.toFixed(1)} mm`:""}.`;
+}
+setText("dailySummary",s)
+}
+
+function familySignal(data){const h=data.hourly,idxs=todayIndexes(h.time,9,18),maxUv=Math.max(...idxs.map(i=>Number(h.uv_index[i]))),rain=avg(idxs.map(i=>Number(h.precipitation[i]))),maxTemp=Math.max(...idxs.map(i=>Number(h.temperature_2m[i]))),wind=Math.max(...idxs.map(i=>Number(h.wind_speed_10m[i])));let icon="🟢",title="Rausgehen gut",sub="Park oder Ausflug passt heute gut.";if(rain>0.5){icon="🔵";title="Eher Indoor";sub="Regenrisiko – Museum/Indoor besser."}else if(maxUv>=6||maxTemp>=28){icon="🟠";title="Raus, aber mit Schutz";sub="Schatten, Wasser, Hut und SPF50+."}else if(wind>35){icon="🟡";title="Etwas windig";sub="Draußen ok, windgeschützt wählen."}$("familySignal").innerHTML=`<div class="period"><div class="icon">${icon}</div><div><div class="periodTitle">${title}</div><div class="periodSub">${sub}</div></div><div class="periodTemp">${Math.round(maxTemp)}°</div></div>`}
+function periodData(h,title,start,end){const ids=todayIndexes(h.time,start,end);if(!ids.length)return null;const temp=Math.round(avg(ids.map(i=>Number(h.temperature_2m[i])))),cloud=avg(ids.map(i=>Number(h.cloud_cover[i]))),rain=avg(ids.map(i=>Number(h.precipitation[i]))),code=h.weather_code[ids[Math.floor(ids.length/2)]];return{title,temp,sub:segmentText(cloud,rain),icon:weatherIcon(code,cloud,rain),range:pad(start)+":00–"+pad(end)+":00"}}
+function renderPeriods(data){const h=data.hourly,nowH=new Date().getHours(),periods=[];if(nowH<=11)periods.push(periodData(h,"Vormittag",9,11));if(nowH<=17)periods.push(periodData(h,"Nachmittag",12,17));if(nowH<=21)periods.push(periodData(h,"Abend",18,21));const c=data.current,current={title:"Aktuell",temp:Math.round(c.temperature_2m),sub:weatherCodeText(c.weather_code),icon:weatherIcon(c.weather_code,c.cloud_cover,c.precipitation),range:"jetzt"};$("periodCards").innerHTML=[current,...periods.filter(Boolean)].map(p=>`<div class="period"><div class="icon">${p.icon}</div><div><div class="periodTitle">${p.title}</div><div class="periodSub">${p.range} · ${p.sub}</div></div><div class="periodTemp">${p.temp}°</div></div>`).join("")}
+function indexesForUvTimeline(times){
+  const now=new Date();
+  const currentHour=now.getHours();
+  let target=new Date(now);
+  let startHour=9, endHour=21;
+
+  if(currentHour<9){
+    startHour=9;
+  }else if(currentHour<=21){
+    startHour=currentHour;
+  }else{
+    target.setDate(target.getDate()+1);
+    startHour=9;
+  }
+
+  const arr=[];
+  for(let i=0;i<times.length;i++){
+    const t=new Date(times[i]),h=t.getHours();
+    if(t.getFullYear()==target.getFullYear()&&t.getMonth()==target.getMonth()&&t.getDate()==target.getDate()&&h>=startHour&&h<=endHour) arr.push(i);
+  }
+  return arr;
+}
+
+function renderUvTimeline(times,uvs){
+const el=$("uvTimeline");el.innerHTML="";
+const idxs=indexesForUvTimeline(times);
+idxs.forEach(i=>{
+  const uv=Number(uvs[i]),l=creamLevel(uv),d=document.createElement("div");
+  d.className="hour "+l.cls;
+  d.innerHTML=`<div class="t">${hhmm(times[i])}</div><div class="uv">${l.icon}<br>${uv.toFixed(1)}</div><div class="rec">${l.short}</div>`;
+  el.appendChild(d)
+});
+const ni=nearestHourlyIndex(times),uv=Number(uvs[ni]),l=creamLevel(uv);
+$("creamNow").innerHTML=`<strong>${l.icon} Jetzt: UV ${uv.toFixed(1)}</strong><br>${l.text}`;
+$("uvrisk").textContent=l.short
+}
+
+function cleanPlaceForSearch(){
+  return (currentPlaceName||"")
+    .replace(/^Zuhause · /,"")
+    .replace(/^\d+ · /,"")
+    .replace(/\s+·\s*$/,"")
+    .trim() || "München";
+}
+function mapsLink(query){
+  return "https://www.google.com/maps/search/"+encodeURIComponent(query+" "+cleanPlaceForSearch());
+}
+function renderActivities(data){
+const h=data.hourly,idxs=todayIndexes(h.time,9,18);
+const rain=avg(idxs.map(i=>Number(h.precipitation[i])));
+const maxUv=Math.max(...idxs.map(i=>Number(h.uv_index[i])));
+const maxTemp=Math.max(...idxs.map(i=>Number(h.temperature_2m[i])));
+let acts;
+if(rain>0.4){
+acts=[
+["🏛️","Museum oder Ausstellung","Indoor-Entdeckeridee passend zum aktuellen Ort.","Museum Ausstellung"],
+["🎨","Kreativkurs / Familienworkshop","Malen, basteln, mitmachen – gute Regenidee.","Familienworkshop Kreativkurs"],
+["📚","Bibliothek mit Kinderbereich","Ruhig, spontan, wetterfest und oft kostenlos.","Bibliothek Kinderbereich"],
+["🎭","Puppentheater / Kindervorstellung","Schöne Indoor-Idee, wenn heute etwas läuft.","Puppentheater Kindervorstellung"],
+["☕","Eltern-Kind-Café","Entspannt für Erwachsene, kleine Beschäftigung fürs Kind.","Eltern Kind Café"]
+]}else if(maxUv>=6||maxTemp>=28){
+acts=[
+["🌳","Schattiger Park oder Wald","Heute ideal: Schatten, Wasser, Pausen.","schattiger Park Wald"],
+["💦","See / Wasserstelle früh oder spät","Nur außerhalb der stärksten Sonne, SPF50+.","See Badestelle Wasserspielplatz"],
+["🏛️","Museum als Hitzepause","Gute Ausweichidee für die heißen Stunden.","Museum"],
+["🌿","Kurze Entdecker-Runde im Grünen","Kinderwagen-tauglich, eher schattig planen.","Spaziergang Park"],
+["🌇","Abendrunde statt Mittagssonne","Besser nach der stärksten UV-Zeit.","Abendspaziergang Park"]
+]}else{
+acts=[
+["🌳","Park oder See","Draußen unkompliziert und wettergeeignet.","Park See"],
+["🚂","Kleine besondere Fahrt","ÖPNV, Bahn, Aussichtspunkt oder Mini-Abenteuer.","Ausflug Aussichtspunkt"],
+["🌲","Wald-/Naturpfad","Bewegung, Sammeln, Entdecken – kreativ ohne viel Planung.","Wald Naturpfad"],
+["🏰","Schlosspark / Altstadt-Runde","Auch für Erwachsene schön, mit kurzer Strecke planen.","Schlosspark Altstadt"],
+["🎨","Kreativ- oder Familienworkshop","Als Plan B oder Nachmittagsidee.","Familienworkshop Kreativ"]
+]}
+$("activityList").innerHTML=acts.map(a=>`<a class="item" href="${mapsLink(a[3])}" target="_blank"><div class="icon">${a[0]}</div><div><div class="itemTitle">${a[1]}</div><div class="itemSub">${a[2]} · Suche rund um ${cleanPlaceForSearch()}</div></div></a>`).join("")
+}
+
+function renderTempChart(times,temps){const data=todayIndexes(times,0,23).map(i=>({time:times[i],temp:Number(temps[i])}));const w=430,h=205,L=34,R=10,T=20,B=32,minT=Math.floor(Math.min(...data.map(d=>d.temp))-1),maxT=Math.ceil(Math.max(...data.map(d=>d.temp))+1),x=i=>L+i*(w-L-R)/(data.length-1),y=t=>T+(maxT-t)*(h-T-B)/(maxT-minT);let labels="",yl="";data.forEach((d,i)=>{const hr=new Date(d.time).getHours();if(hr%6===0){labels+=`<text class="chartText" x="${x(i)}" y="${h-10}" text-anchor="middle">${pad(hr)}h</text><line class="axis" x1="${x(i)}" y1="${T}" x2="${x(i)}" y2="${h-B}" opacity=".45"/>`}});for(let t=minT;t<=maxT;t+=4){yl+=`<line class="axis" x1="${L}" y1="${y(t)}" x2="${w-R}" y2="${y(t)}"/><text class="chartText" x="5" y="${y(t)+4}">${t}°</text>`}const pts=data.map((d,i)=>`${x(i)},${y(d.temp)}`).join(" ");$("tempChart").innerHTML=`<svg viewBox="0 0 ${w} ${h}">${yl}${labels}<polyline points="${pts}" fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
+function renderSun(sr0,ss0){
+setText("sunrise",hhmm(sr0));setText("sunset",hhmm(ss0));
+const sr=new Date(sr0).getTime(),ss=new Date(ss0).getTime(),now=Date.now();
+const pct=Math.min(1,Math.max(0,(now-sr)/(ss-sr))),left=8+pct*84,top=73-Math.sin(Math.PI*pct)*50;
+$("sunDot").style.left=left+"%";$("sunDot").style.top=top+"%";
+const mins=Math.round((ss-sr)/60000);
+let extra="";
+if(LAST_WEATHER_DATA && LAST_WEATHER_DATA.daily && LAST_WEATHER_DATA.daily.sunrise[1] && LAST_WEATHER_DATA.daily.sunset[1]){
+  extra=` · morgen: 🌅 ${hhmm(LAST_WEATHER_DATA.daily.sunrise[1])}, 🌇 ${hhmm(LAST_WEATHER_DATA.daily.sunset[1])}`;
+}else if(now<sr) extra=` · Sonnenaufgang heute um ${hhmm(sr0)}`;
+else extra=` · Sonnenuntergang heute um ${hhmm(ss0)}`;
+setText("dayLength","Tageslänge: "+Math.floor(mins/60)+" h "+pad(mins%60)+" min"+extra)
+}
+
+function aqiLevel(aqi){if(aqi<20)return{icon:"🟢",title:"Sehr gute Luft",sub:"Ideal für draußen, Spielplatz und Lüften. PM2.5/PM10 = Feinstaub.",cls:"green"};if(aqi<40)return{icon:"🟢",title:"Gute Luft",sub:"Gut für draußen und Alltag. PM2.5/PM10 = Feinstaub.",cls:"green"};if(aqi<60)return{icon:"🟡",title:"Mäßige Luft",sub:"Für empfindliche Personen etwas beobachten. PM2.5/PM10 = Feinstaub.",cls:"yellow"};if(aqi<80)return{icon:"🟠",title:"Schlechtere Luft",sub:"Lieber Park statt Hauptstraße; starke Belastung reduzieren.",cls:"orange"};return{icon:"🔴",title:"Sehr schlechte Luft",sub:"Draußen eher reduzieren; ruhige Wege wählen.",cls:"red"}}
+
+
+
+const BY_HOLIDAYS=[
+  ["2026-01-01","Neujahr"],["2026-01-06","Heilige Drei Könige"],["2026-04-03","Karfreitag"],["2026-04-06","Ostermontag"],["2026-05-01","Tag der Arbeit"],["2026-05-14","Christi Himmelfahrt"],["2026-05-25","Pfingstmontag"],["2026-06-04","Fronleichnam"],["2026-08-15","Mariä Himmelfahrt"],["2026-10-03","Tag der Deutschen Einheit"],["2026-11-01","Allerheiligen"],["2026-12-25","1. Weihnachtsfeiertag"],["2026-12-26","2. Weihnachtsfeiertag"],
+  ["2027-01-01","Neujahr"],["2027-01-06","Heilige Drei Könige"],["2027-03-26","Karfreitag"],["2027-03-29","Ostermontag"],["2027-05-01","Tag der Arbeit"],["2027-05-06","Christi Himmelfahrt"],["2027-05-17","Pfingstmontag"],["2027-05-27","Fronleichnam"],["2027-08-15","Mariä Himmelfahrt"],["2027-10-03","Tag der Deutschen Einheit"],["2027-11-01","Allerheiligen"],["2027-12-25","1. Weihnachtsfeiertag"],["2027-12-26","2. Weihnachtsfeiertag"]
+];
+
+const BY_FERIEN=[
+  ["2026-02-16","2026-02-20","Winterferien Bayern"],["2026-03-30","2026-04-10","Osterferien Bayern"],["2026-05-26","2026-06-05","Pfingstferien Bayern"],["2026-08-03","2026-09-14","Sommerferien Bayern"],["2026-11-02","2026-11-06","Herbstferien Bayern"],["2026-12-24","2027-01-08","Weihnachtsferien Bayern"],
+  ["2027-02-08","2027-02-12","Winterferien Bayern"],["2027-03-29","2027-04-09","Osterferien Bayern"],["2027-05-18","2027-05-28","Pfingstferien Bayern"],["2027-08-02","2027-09-13","Sommerferien Bayern"],["2027-11-02","2027-11-05","Herbstferien Bayern"],["2027-12-24","2028-01-07","Weihnachtsferien Bayern"]
+];
+
+const FAMILY_DATES=[
+  {date:"2023-09-04",name:"Marthas Geburtstag",icon:"🌼",type:"birthday"},
+  {date:"2026-03-29",name:"Theas Geburtstag",icon:"✨",type:"birthday"},
+  {mmdd:"05-03",name:"euer Jahrestag des Zusammenkommens",icon:"💛",type:"personal",sub:"Ein guter Tag für eine kleine Erinnerung daran, warum ihr eigentlich zusammen losgelaufen seid."},
+  {mmdd:"06-30",name:"euer Hochzeitstag",icon:"💍",type:"personal",sub:"Vielleicht langsam heimlich planen — oder bewusst sehr schlicht und schön halten."}
+];
+
+const CULTURE_EVENTS=[
+  ["03-20","Frühlingsanfang","🌱","Ab jetzt gewinnt das Licht wieder sichtbar an Kraft."],
+  ["06-21","Sommerbeginn","☀️","Sommeranfang: langer Tag, kurzer Abend, gute Ausrede für Eis."],
+  ["09-22","Herbstanfang","🍂","Herbstanfang: bessere Jacken, Suppe und goldenes Licht."],
+  ["12-21","Winterbeginn","❄️","Wintersonnenwende: Ab jetzt werden die Tage wieder länger."],
+  ["10-31","Halloween","🎃","Heute darf es albern, gruselig und zu süß werden."],
+  ["11-11","Martinstag / Faschingsstart","🕯️","Laternen, Gänse und um 11:11 Uhr beginnt der Fasching."],
+  ["11-27","Black Friday","🛒","Nicht alles ist Deal — aber alles sieht kurz so aus."],
+  ["03-29","Zeitumstellung","🕒","Sommerzeit: Die Uhr springt nach vorn."],
+  ["10-25","Zeitumstellung","🕒","Winterzeit: eine Stunde zurück."]
+];
+
+const NAMEDAYS=[
+  ["02-18","Simon","🧑","Heute ist Simons Namenstag."],
+  ["06-04","Eva","🍎","Heute ist Evas Namenstag — Apfel, Mythos, Neugier."],
+  ["07-29","Martha","🌼","Heute ist Marthas Namenstag."],
+  ["12-19","Thea","✨","Heute ist Theas Namenstag."]
+];
+
+const SKY_EVENTS=[
+  ["2026-08-12","Perseiden-Nacht","🌌","Wenn der Himmel klar ist: nach Mitternacht lohnt ein Blick nach oben."],
+  ["2026-12-14","Geminiden","🌠","Eine der zuverlässigsten Sternschnuppen-Nächte des Jahres."],
+  ["2027-08-12","Perseiden-Nacht","🌌","Wenn der Himmel klar ist: nach Mitternacht lohnt ein Blick nach oben."],
+  ["2027-12-14","Geminiden","🌠","Eine der zuverlässigsten Sternschnuppen-Nächte des Jahres."]
+];
+
+function ymd(d){return d.toISOString().slice(0,10)}
+function md(d){return ymd(d).slice(5)}
+function addDays(d,n){const x=new Date(d);x.setDate(x.getDate()+n);return x}
+function daysBetween(a,b){return Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/86400000)}
+function humanDay(dateStr){
+  const diff=daysBetween(ymd(new Date()),dateStr);
+  if(diff===0) return "heute";
+  if(diff===1) return "morgen";
+  if(diff===2) return "übermorgen";
+  if(diff>2) return `in ${diff} Tagen`;
+  return new Date(dateStr+"T12:00:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit"});
+}
+function isWithin(dateStr,start,end){return dateStr>=start && dateStr<=end}
+function nextByMonthDay(mmdd){
+  const now=new Date();
+  let d=new Date(`${now.getFullYear()}-${mmdd}T12:00:00`);
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  if(d < today) d=new Date(`${now.getFullYear()+1}-${mmdd}T12:00:00`);
+  return ymd(d);
+}
+function nextBirthday(dateStr){
+  const b=new Date(dateStr+"T12:00:00");
+  const now=new Date();
+  let d=new Date(`${now.getFullYear()}-${String(b.getMonth()+1).padStart(2,"0")}-${String(b.getDate()).padStart(2,"0")}T12:00:00`);
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  if(d < today) d=new Date(`${now.getFullYear()+1}-${String(b.getMonth()+1).padStart(2,"0")}-${String(b.getDate()).padStart(2,"0")}T12:00:00`);
+  const years=d.getFullYear()-b.getFullYear();
+  return {date:ymd(d),years};
+}
+function childAgeText(dateStr){
+  const b=new Date(dateStr+"T12:00:00"), n=new Date();
+  let months=(n.getFullYear()-b.getFullYear())*12+(n.getMonth()-b.getMonth());
+  if(n.getDate()<b.getDate()) months--;
+  const years=Math.floor(months/12), rest=months%12;
+  if(years<=0) return `${months} Monate`;
+  if(rest===0) return `${years} Jahre`;
+  return `${years} Jahre und ${rest} Monate`;
+}
+function familyMilestones(){
+  const ev=[];
+  const today=ymd(new Date());
+  const dayOfYear=Math.floor((new Date()-new Date(new Date().getFullYear(),0,0))/86400000);
+
+  FAMILY_DATES.filter(x=>x.type==="birthday").forEach(x=>{
+    const nb=nextBirthday(x.date);
+    const diff=daysBetween(today,nb.date);
+    if(diff<=45){
+      ev.push({score:100-diff,date:nb.date,icon:x.icon,title:diff===0?`${x.name} heute`:`${x.name} ${humanDay(nb.date)}`,sub:diff===0?`Heute wird ${x.name.includes("Martha")?"Martha":"Thea"} ${nb.years}.`:`Noch ${diff} Tage bis zum ${nb.years}. Geburtstag.`});
+    }
+  });
+
+  // Nur alle paar Tage ein sanfter Familienmoment, damit es nicht täglich wie ein Babytracker wirkt.
+  if(dayOfYear % 5 === 0){
+    ev.push({score:34,date:today,icon:"🌼",title:`Martha ist jetzt ${childAgeText("2023-09-04")}`,sub:"Gutes Alter für Rituale, Selbermachen, Fantasiespiele und sehr klare Meinungen."});
+  }else if(dayOfYear % 5 === 2){
+    ev.push({score:34,date:today,icon:"✨",title:`Thea ist jetzt ${childAgeText("2026-03-29")}`,sub:"Ein kleines Zeitzeichen: Nähe, Stimmen, Wiedererkennen und Alltagsrituale werden gerade kostbar."});
+  }
+  return ev;
+}
+function upcomingEvents(days=14){
+  const today=ymd(new Date());
+  const end=ymd(addDays(new Date(),days));
+  const ev=[];
+
+  familyMilestones().forEach(x=>ev.push(x));
+  ev.push(historyToday());
+
+  FAMILY_DATES.filter(x=>x.type==="personal").forEach(x=>{
+    const date=nextByMonthDay(x.mmdd);
+    if(date>=today && date<=end) ev.push({score:95-daysBetween(today,date),date,icon:x.icon,title:x.name,sub:x.sub});
+  });
+
+  BY_HOLIDAYS.forEach(([date,name])=>{
+    if(date>=today && date<=end) ev.push({score:80-daysBetween(today,date),date,icon:"📅",title:name,sub:`Bayerischer Feiertag ${humanDay(date)}. Warum relevant? Feiertage sind gesellschaftliche Stoppschilder: Arbeit ruht, Familienrhythmen ändern sich, Ausflugsorte füllen sich — und oft steckt ein religiöser oder historischer Anlass dahinter.`});
+  });
+
+  BY_FERIEN.forEach(([s,e,name])=>{
+    if(isWithin(today,s,e)) ev.push({score:75,date:today,icon:"🎒",title:name,sub:`Läuft gerade bis ${new Date(e+"T12:00:00").toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})}. Ausflugsziele können voller sein.`});
+    else if(s>=today && s<=end) ev.push({score:74-daysBetween(today,s),date:s,icon:"🎒",title:name,sub:`Start ${humanDay(s)}. Funfact: Ferien sind weniger freie Zeit als kollektiver Bewegungsdrang — Badeseen, Berge und Autobahnen merken es zuerst.`});
+  });
+
+  CULTURE_EVENTS.forEach(([mmdd,title,icon,sub])=>{
+    const date=nextByMonthDay(mmdd);
+    if(date>=today && date<=end) ev.push({score:60-daysBetween(today,date),date,icon,title,sub});
+  });
+
+  SKY_EVENTS.forEach(([date,title,icon,sub])=>{
+    if(date>=today && date<=end) ev.push({score:58-daysBetween(today,date),date,icon,title,sub});
+  });
+
+  NAMEDAYS.forEach(([mmdd,name,icon,sub])=>{
+    const date=nextByMonthDay(mmdd);
+    if(date===today) ev.push({score:90,date,icon,title:`Namenstag ${name}`,sub});
+  });
+
+  const now=new Date();
+  const month=now.getMonth()+1;
+  if(month>=4 && month<=6) ev.push({score:30,date:today,icon:"🍓",title:"Erdbeer-/Spargelzeit",sub:"Spargel und Erdbeeren sind heimliche bayerische Smalltalk-Währungen: Jeder hat eine Meinung zu Preis, Herkunft und Zubereitung."});
+  if(month>=6 && month<=8) ev.push({score:28,date:today,icon:"🍦",title:"Eis-Zeit",sub:"Eis ist kein Dessert, sondern ein pädagogisch wertvoller Spaziergangsverstärker."});
+  if(month>=9 && month<=10) ev.push({score:28,date:today,icon:"🍄",title:"Herbst-Sammelgefühl",sub:"Die Jahreszeit, in der Kinder Taschen voller Kastanien heimbringen und Erwachsene plötzlich „Licht“ fotografieren."});
+  if(month===12) ev.push({score:28,date:today,icon:"🎄",title:"Adventsmodus",sub:"Die Zeit, in der ein kurzer Lichter-Spaziergang mehr Stimmung macht als ein großer Plan."});
+
+  ev.sort((a,b)=>(b.score-a.score) || a.date.localeCompare(b.date));
+  const seen=new Set();
+  return ev.filter(e=>{
+    const key=e.title.toLowerCase();
+    if(seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0,8);
+}
+function renderEvents(){
+  const box=$("eventsList");
+  if(!box) return;
+  const ev=upcomingEvents(14);
+  box.innerHTML=ev.map(e=>`<div class="item eventBig"><div class="icon">${e.icon}</div><div><div class="itemTitle">${e.title}</div><div class="itemSub">${humanDay(e.date)} · ${e.sub}</div></div></div>`).join("");
+}
+function fuelHolidayRisk(dateStr){
+  let risk=0, notes=[];
+  BY_HOLIDAYS.forEach(([date,name])=>{
+    const diff=daysBetween(dateStr,date);
+    if(diff>=0 && diff<=2){risk+=1;notes.push(`${name} naht`)}
+  });
+  BY_FERIEN.forEach(([s,e,name])=>{
+    if(isWithin(dateStr,s,e)){risk+=1;notes.push(`${name}`)}
+    const diff=daysBetween(dateStr,s);
+    if(diff>=0 && diff<=2){risk+=1;notes.push(`${name} startet bald`)}
+  });
+  return {risk,notes:[...new Set(notes)].slice(0,2)};
+}
+
+function bestFuelWindowText(){
+  const h=new Date().getHours();
+  if(h>=18 && h<=21) return {icon:"🟢",title:"Jetzt prüfen",sub:"18–21 Uhr ist häufig eines der günstigeren Zeitfenster."};
+  if(h>=12 && h<18) return {icon:"🟡",title:"Eher später prüfen",sub:"Oft sinken Preise Richtung Abend. Gegen 18–21 Uhr erneut vergleichen."};
+  if(h<10) return {icon:"🔴",title:"Morgens eher meiden",sub:"Morgens sind Kraftstoffe häufig teurer. Wenn möglich später tanken."};
+  return {icon:"⚪",title:"Preise beobachten",sub:"Ohne Live-Historie ist die beste Empfehlung: heute Abend erneut vergleichen."};
+}
+
+function renderFuelForecast(){
+  const now=bestFuelWindowText();
+  const today=new Date();
+
+  function rowFor(i){
+    const date=ymd(addDays(today,i));
+    const dayName=i===0?"Heute":"Morgen";
+    const cal=fuelHolidayRisk(date);
+    let icon=i===0?now.icon:"🟡";
+    let title=i===0?now.title:"Abends vergleichen";
+    let cls=i===0?(now.icon=="🟢"?"green":now.icon=="🔴"?"red":now.icon=="🟡"?"yellow":"gray"):"yellow";
+    let sub=i===0?now.sub:"Günstigster Ansatz: Livepreise vergleichen, bevorzugt kurz vor 12 Uhr oder 18–21 Uhr.";
+    if(cal.risk>0){
+      if(cls==="green") cls="yellow";
+      if(icon==="🟢") icon="🟡";
+      sub+=` Kalender-Hinweis: ${cal.notes.join(", ")}. Das kann Nachfrage/Reiseverkehr erhöhen.`;
+    }else if(i===1){
+      sub+=" Keine besonderen Bayern-Feiertags-/Ferienhinweise gefunden.";
+    }
+    return `<div class="period ${cls}"><div class="icon">${icon}</div><div><div class="periodTitle">${dayName}: ${title}</div><div class="periodSub">${sub}</div></div><div class="periodTemp">${icon}</div></div>`;
+  }
+  $("fuelForecast").innerHTML=rowFor(0)+rowFor(1);
+}
+
+async function fetchJsonWithFallback(url){
+  try{
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    return await r.json();
+  }catch(firstErr){
+    const proxy="https://api.allorigins.win/raw?url="+encodeURIComponent(url);
+    const r2=await fetch(proxy,{cache:"no-store"});
+    if(!r2.ok) throw new Error("Proxy HTTP "+r2.status+" / "+firstErr.message);
+    return await r2.json();
+  }
+}
+
+function priceText(v){
+  return (v===null || v===undefined || Number.isNaN(Number(v))) ? "--" : Number(v).toFixed(3)+"€";
+}
+
+async function loadFuelStations(){
+  renderFuelForecast();
+  const fallbackLink=`https://www.clever-tanken.de/tankstelle_liste?lat=${fuelLat}&lon=${fuelLon}&ort=${encodeURIComponent(currentPlaceName)}&spritsorte=7&r=5`;
+
+  if(!TANKERKOENIG_API_KEY){
+    $("fuelStations").innerHTML=`<a class="item" href="${fallbackLink}" target="_blank"><div class="icon">⛽</div><div><div class="itemTitle">Livepreise extern öffnen</div><div class="itemSub">Kein API-Key eingetragen.</div></div></a>`;
+    return;
+  }
+
+  try{
+    const url=`https://creativecommons.tankerkoenig.de/json/list.php?lat=${fuelLat}&lng=${fuelLon}&rad=6&sort=dist&type=all&apikey=${TANKERKOENIG_API_KEY}`;
+    const d=await fetchJsonWithFallback(url);
+    if(!d.ok) throw new Error((d.message || "Tankerkönig meldet Fehler") + " – bitte API-Key prüfen/aktivieren.");
+
+    let stations=(d.stations||[]).filter(s=>s && s.name);
+    if(!stations.length) throw new Error("keine Tankstellen im Umkreis gefunden");
+
+    const aralIndex=stations.findIndex(s=>
+      /aral/i.test((s.brand||"")+" "+(s.name||"")) ||
+      /wasserburger/i.test((s.street||"")+" "+(s.name||""))
+    );
+    const aral=aralIndex>=0 ? stations.splice(aralIndex,1)[0] : null;
+
+    stations.sort((a,b)=>{
+      const ap=Math.min(Number(a.e10||99),Number(a.e5||99));
+      const bp=Math.min(Number(b.e10||99),Number(b.e5||99));
+      if(ap!==bp) return ap-bp;
+      return Number(a.dist||99)-Number(b.dist||99);
+    });
+
+    const display=[...(aral?[aral]:[]),...stations].slice(0,6);
+
+    $("fuelStations").innerHTML=display.map((s,idx)=>{
+      const isRef=aral && idx===0;
+      const dist=s.dist!==undefined ? Number(s.dist).toFixed(1)+" km" : "? km";
+      const state=s.isOpen ? "offen" : "geschlossen";
+      const brand=s.brand ? s.brand+" · " : "";
+      const minPrice=Math.min(Number(s.e10||99),Number(s.e5||99));
+      const cheapest=!isRef && minPrice===Math.min(...stations.map(x=>Math.min(Number(x.e10||99),Number(x.e5||99))));
+      const icon=isRef?"📍":cheapest?"🏆":"⛽";
+      const label=isRef?"Referenz · ":cheapest?"Günstigste · ":"";
+      return `<div class="period ${isRef?"yellow":cheapest?"green":""}">
+        <div class="icon">${icon}</div>
+        <div>
+          <div class="periodTitle">${label}${brand}${s.name}</div>
+          <div class="periodSub">${s.street||""} · ${dist} · ${state}<br>E5 ${priceText(s.e5)} · E10 ${priceText(s.e10)}</div>
+        </div>
+        <div class="periodTemp price">${minPrice===99?"--":priceText(minPrice)}</div>
+      </div>`;
+    }).join("");
+  }catch(e){
+    $("fuelStations").innerHTML=`<a class="item" href="${fallbackLink}" target="_blank"><div class="icon">⛽</div><div><div class="itemTitle">Livepreise konnten nicht geladen werden</div><div class="itemSub">Extern öffnen · ${String(e.message).replace(/</g,"&lt;")}</div></div></a>`;
+  }
+}
+
+
+let AIR_DAILY_MAX = {};
+let LAST_WEATHER_DATA = null;
+
+function dayLabel(dateString, index){
+  if(index===1) return "Morgen";
+  return new Date(dateString+"T12:00:00").toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit"});
+}
+function aqiShort(aqi){
+  if(aqi === null || aqi === undefined || Number.isNaN(aqi)) return {icon:"⚪",txt:"AQI --",cls:"gray"};
+  if(aqi<20) return {icon:"🟢",txt:"Luft sehr gut",cls:"green"};
+  if(aqi<40) return {icon:"🟢",txt:"Luft gut",cls:"green"};
+  if(aqi<60) return {icon:"🟡",txt:"Luft mäßig",cls:"yellow"};
+  if(aqi<80) return {icon:"🟠",txt:"Luft schlechter",cls:"orange"};
+  return {icon:"🔴",txt:"Luft sehr schlecht",cls:"red"};
+}
+function uvShort(uv){
+  if(uv<3) return "UV ok";
+  if(uv<6) return "UV: eincremen";
+  if(uv<8) return "UV hoch";
+  return "UV sehr hoch";
+}
+function renderForecastDays(data){
+  const box=$("forecastDays");
+  if(!box || !data || !data.daily || !data.daily.time) return;
+  const d=data.daily, cards=[];
+  for(let i=1;i<=4 && i<d.time.length;i++){
+    const date=d.time[i], tmax=Math.round(d.temperature_2m_max[i]), tmin=Math.round(d.temperature_2m_min[i]);
+    const rain=Number(d.precipitation_sum[i]||0), uv=Number(d.uv_index_max[i]||0), code=d.weather_code[i];
+    const icon=weatherIcon(code, code===0 ? 5 : (code<=2 ? 35 : 75), rain);
+    const air=aqiShort(AIR_DAILY_MAX[date]);
+    const rainTxt=rain>0 ? ` · Regen ${rain.toFixed(1)} mm` : "";
+    cards.push(`<div class="period ${air.cls}">
+      <div class="icon">${icon}</div>
+      <div><div class="periodTitle">${dayLabel(date,i)} · ${tmin}–${tmax}°</div>
+      <div class="periodSub">${weatherCodeText(code)}${rainTxt} · ${uvShort(uv)} ${uv.toFixed(1)} · ${air.icon} ${air.txt}</div></div>
+      <div class="periodTemp">${Math.round(uv)}</div>
+    </div>`);
+  }
+  box.innerHTML=cards.join("");
+}
+
+async function loadWeather(){try{const url=`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&timezone=Europe%2FBerlin&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,cloud_cover,wind_speed_10m,weather_code&hourly=temperature_2m,uv_index,cloud_cover,precipitation,weather_code,wind_speed_10m&daily=uv_index_max,sunrise,sunset,weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum`;const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw new Error("Open-Meteo HTTP "+r.status);const data=await r.json(),c=data.current;LAST_WEATHER_DATA=data;setText("temp",Math.round(c.temperature_2m)+"°");setText("apparent",Math.round(c.apparent_temperature)+"°C");setText("wind",Math.round(c.wind_speed_10m)+" km/h");setText("precip",Number(c.precipitation).toFixed(1)+" mm");setText("condition",weatherCodeText(c.weather_code));renderSummary(data);renderPeriods(data);renderUvTimeline(data.hourly.time,data.hourly.uv_index);renderActivities(data);renderTempChart(data.hourly.time,data.hourly.temperature_2m);renderSun(data.daily.sunrise[0],data.daily.sunset[0]);renderForecastDays(data);setText("updated",new Date().toLocaleString("de-DE",{weekday:"short",hour:"2-digit",minute:"2-digit"}))}catch(e){showError("Wetterdaten konnten nicht geladen werden. Fehler: "+e.message)}}
+async function loadAir(){try{const url=`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&timezone=Europe%2FBerlin&current=european_aqi,pm10,pm2_5&hourly=european_aqi&forecast_days=5`;const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw new Error("AQI HTTP "+r.status);const d=await r.json(),c=d.current,aqi=Math.round(c.european_aqi),l=aqiLevel(aqi);
+AIR_DAILY_MAX={};
+if(d.hourly && d.hourly.time && d.hourly.european_aqi){
+  d.hourly.time.forEach((t,i)=>{
+    const day=t.slice(0,10);
+    const val=Number(d.hourly.european_aqi[i]);
+    if(!Number.isNaN(val)) AIR_DAILY_MAX[day]=Math.max(AIR_DAILY_MAX[day]||0,val);
+  });
+}
+if(LAST_WEATHER_DATA) renderForecastDays(LAST_WEATHER_DATA);
+$("airTop").innerHTML=`<div class="period ${l.cls}"><div class="icon">${l.icon}</div><div><div class="periodTitle">AQI ${aqi} — ${l.title}</div><div class="periodSub">${l.sub} · PM2.5 ${Math.round(c.pm2_5)}, PM10 ${Math.round(c.pm10)}</div></div><div class="periodTemp">${aqi}</div></div>`}catch(e){$("airTop").innerHTML=`<div class="period yellow"><div class="icon">🟡</div><div><div class="periodTitle">Luftqualität nicht geladen</div><div class="periodSub">Internet/API prüfen.</div></div><div class="periodTemp">--</div></div>`}}
+async function loadMvg(){
+const isMunich=/münchen|trudering|81825|zuhause/i.test(currentPlaceName);
+const fallback=`<a class="item" href="${isMunich ? MVG_URL : 'https://www.google.com/maps/search/%C3%96PNV+'+encodeURIComponent(currentPlaceName)}" target="_blank"><div class="icon">🚇</div><div><div class="itemTitle">${isMunich?'MVG Betriebsmeldungen öffnen':'ÖPNV am gewählten Ort öffnen'}</div><div class="itemSub">${isMunich?'Offizielle Störungen & Änderungen':'Google Maps Suche für den aktuellen Ort'}</div></div></a>`;
+if(!isMunich){$("mvgList").innerHTML=fallback;return}
+try{const url="https://api.allorigins.win/raw?url="+encodeURIComponent(MVG_URL);const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw new Error("MVG HTTP "+r.status);const html=await r.text();const doc=new DOMParser().parseFromString(html,"text/html");let texts=[...doc.querySelectorAll("h2,h3,h4,a,p,li")].map(x=>x.textContent.trim()).filter(t=>t.length>18&&t.length<180);texts=texts.filter(t=>/(U[0-9]|S[0-9]|Bus|Tram|Störung|Verspät|Umleitung|Betrieb|Linie)/i.test(t));const seen=new Set(),uniq=[];for(const t of texts){const key=t.toLowerCase().replace(/\s+/g," ").slice(0,80);if(!seen.has(key)){seen.add(key);uniq.push(t)}if(uniq.length>=4)break}if(!uniq.length)throw new Error("keine Meldungen extrahiert");$("mvgList").innerHTML=uniq.map(t=>`<a class="item" href="${MVG_URL}" target="_blank"><div class="icon">🚇</div><div><div class="itemTitle">${t.replace(/</g,"&lt;")}</div><div class="itemSub">MVG Betriebsmeldung öffnen</div></div></a>`).join("")}catch(e){$("mvgList").innerHTML=fallback}
+}
+
+function normalizeTitle(t){return t.toLowerCase().replace(/ - .+$/,"").replace(/\|.+$/,"").replace(/[^a-zäöüß0-9 ]/gi,"").replace(/\s+/g," ").trim()}
+function newsQueryForPlace(){
+  let q=currentPlaceName || "München";
+  q=q.replace(/Zuhause · /,"").replace(/^\d+ · /,"").trim();
+  if(/81825|Trudering/i.test(q)) return "(Trudering OR Riem OR München) when:3d";
+  return `(${q}) when:3d`;
+}
+async function loadNews(){
+  const el=$("newsList");
+  if(!el) return;
+  const direct=`https://news.google.com/search?q=${encodeURIComponent(newsQueryForPlace())}&hl=de&gl=DE&ceid=DE%3Ade`;
+  const fallback=`
+    <a class="news" href="${direct}" target="_blank"><div class="newsTitle">Aktuelle Schlagzeilen zum gewählten Ort öffnen</div><div class="newsMeta">Google News · letzte 3 Tage</div></a>
+    <a class="news" href="https://www.muenchen.de/aktuell" target="_blank"><div class="newsTitle">München.de aktuell</div><div class="newsMeta">Stadt München · falls München/Trudering relevant</div></a>
+    <a class="news" href="https://www.br.de/nachrichten/bayern" target="_blank"><div class="newsTitle">Bayern-Nachrichten öffnen</div><div class="newsMeta">BR24 · regionaler Überblick</div></a>`;
+  try{
+    const rss=encodeURIComponent(`https://news.google.com/rss/search?q=${encodeURIComponent(newsQueryForPlace())}&hl=de&gl=DE&ceid=DE:de`);
+    const url="https://api.allorigins.win/raw?url="+rss;
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok) throw new Error("RSS HTTP "+r.status);
+    const text=await r.text();
+    const xml=new DOMParser().parseFromString(text,"text/xml");
+    const raw=[...xml.querySelectorAll("item")];
+    const seen=new Set(),items=[];
+    for(const it of raw){
+      const title=it.querySelector("title")?.textContent||"News";
+      const key=normalizeTitle(title);
+      if(!key||seen.has(key)) continue;
+      seen.add(key); items.push(it);
+      if(items.length>=10) break;
+    }
+    if(!items.length) throw new Error("keine News");
+    el.innerHTML=items.map(it=>{
+      const title=it.querySelector("title")?.textContent||"News";
+      const link=it.querySelector("link")?.textContent||direct;
+      const pub=it.querySelector("pubDate")?.textContent;
+      const date=pub?new Date(pub).toLocaleDateString("de-DE",{weekday:"short",day:"2-digit",month:"2-digit"}):"";
+      return `<a class="news" href="${link}" target="_blank"><div class="newsTitle">${title.replace(/</g,"&lt;")}</div><div class="newsMeta">${date} · Google News</div></a>`;
+    }).join("");
+  }catch(e){
+    el.innerHTML=fallback;
+  }
+}
+loadWeather();loadAir();loadMvg();loadNews();loadFuelStations();renderEvents();
+setInterval(loadWeather,15*60*1000);setInterval(loadAir,30*60*1000);setInterval(loadMvg,30*60*1000);setInterval(loadNews,30*60*1000);setInterval(loadFuelStations,30*60*1000);
+
+const map=L.map("map",{zoomControl:true,attributionControl:true}).setView([lat,lon],11);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap"}).addTo(map);
+let homeMarker=L.marker([lat,lon]).addTo(map).bindPopup(currentPlaceName);
+let radarLayer=null;async function addRainViewerRadar(){try{const r=await fetch("https://api.rainviewer.com/public/weather-maps.json",{cache:"no-store"});if(!r.ok)throw new Error("RainViewer HTTP "+r.status);const rv=await r.json(),frames=[...((rv.radar&&rv.radar.past)||[]),...((rv.radar&&rv.radar.nowcast)||[])];if(!frames.length)return;const latest=frames[frames.length-1].path;if(radarLayer)map.removeLayer(radarLayer);radarLayer=L.tileLayer(rv.host+latest+"/256/{z}/{x}/{y}/2/1_1.png",{opacity:.72,attribution:"Radar &copy; RainViewer",maxNativeZoom:8,maxZoom:19,tileSize:256,keepBuffer:4}).addTo(map)}catch(e){console.warn("Radar konnte nicht geladen werden:",e)}}
+addRainViewerRadar();setInterval(addRainViewerRadar,15*60*1000);
+
+
+try{renderQuoteOfDay();}catch(e){console.warn("Eva konnte nicht geladen werden",e)}
+document.addEventListener("DOMContentLoaded", renderQuoteOfDay);
+</script>
+</body>
+</html>
